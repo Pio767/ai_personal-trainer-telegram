@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require("express");
 const https = require("https");
 const app = express();
@@ -429,4 +430,15 @@ app.post("/webhook", async (req, res) => {
   }
   
   res.status(200).send("OK");
+});
+
+app.get("/health", (req, res) => {
+  res.json({ status: "OK", message: "🤖 Telegram AI Personal Trainer ready!" });
+});
+
+app.listen(PORT, () => {
+  console.log("🤖 Telegram AI Personal Trainer running on port " + PORT);
+  console.log("🌍 Multi-language welcome system!");
+  console.log("💰 3-day trial, €9.99/month premium!");
+  console.log("🎯 Commands: /start, /polish, /german, /english");
 });
