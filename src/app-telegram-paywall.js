@@ -442,3 +442,43 @@ app.listen(PORT, () => {
   console.log("💰 3-day trial, €9.99/month premium!");
   console.log("🎯 Commands: /start, /polish, /german, /english");
 });
+
+function sendTelegramMessage(chatId, message) {
+  console.log(`🚀 Sending to ${chatId}: ${message.substring(0, 100)}...`);
+  
+  const postData = JSON.stringify({
+    chat_id: chatId,
+    text: message,
+    parse_mode: 'HTML'
+  });
+
+  const options = {
+    hostname: 'api.telegram.org',
+    port: 443,
+    path: `/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(postData)
+    }
+  };
+
+  const req = https.request(options, (res) => {
+    let data = '';
+    res.on('data', (chunk) => { data += chunk; });
+    res.on('end', () => {
+      if (res.statusCode === 200) {
+        console.log('🎉 SUCCESS!');
+      } else {
+        console.error('❌ Error:', JSON.parse(data));
+      }
+    });
+  });
+
+  req.on('error', (error) => {
+    console.error('💥 Error:', error);
+  });
+
+  req.write(postData);
+  req.end();
+}
