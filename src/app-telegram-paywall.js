@@ -12,8 +12,8 @@ app.use(express.json());
 const userTrials = new Map();
 const userConversations = new Map();
 
-const TRIAL_DAYS = 3;
-const TRIAL_MESSAGE_LIMIT = 20;
+const TRIAL_DAYS = 5;
+const TRIAL_MESSAGE_LIMIT = 200;
 const PREMIUM_PRICE = 9.99;
 
 function getWelcomeMessage() {
