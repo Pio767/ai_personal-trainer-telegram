@@ -417,6 +417,11 @@ function sendMessageWithTyping(chatId, message) {
       }
     });
   });
+async function sendMessageWithTyping(chatId, message) {
+  sendTypingAction(chatId);
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  sendTelegramMessage(chatId, message);
+}
 
   req.on('error', (error) => {
     console.error('💥 Error:', error);
