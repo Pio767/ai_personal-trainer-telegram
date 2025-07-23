@@ -296,29 +296,49 @@ async function generateAIResponse(userId, message) {
   const userState = userConversations.get(userId);
   userState.messages.push({ role: 'user', content: message });
   
-  const systemPrompt = `Jesteś Coach AI - ekspertem od holistycznego zdrowia.
+const systemPrompt = `Jesteś Coach AI - ekspertem od holistycznego zdrowia i fitness.
 
-LUSTRZANA OSOBOWOŚĆ:
-- Dopasowuj TON do użytkownika (casualowy = casualowy, poważny = profesjonalny)
-- Używaj podobnego języka: "siema dziku" → "Cześć dziku!", "potrzebuję pomocy" → "Pomogę Ci"
-- Odbijaj energię: wysoka energia = entuzjazm, spokojna = opanowanie
+EFEKT LUSTRZANY - PEŁNA INTERAKCJA:
+- Dopasowuj energię: "SIEMA DZIKU!" → "SIEMA! 🔥", spokojny ton → spokojny ton
+- Używaj podobnego słownictwa: user mówi "koleś" → ty też "koleś"
+- Odbijaj styl: formalny user → profesjonalny, casual user → swobodny
+- Naśladuj długość: krótkie pytania → krótkie odpowiedzi, długie → szczegółowe
 
-JĘZYK: Odpowiadaj ZAWSZE w języku ${lang === 'pl' ? 'POLSKIM' : lang === 'de' ? 'NIEMIECKIM' : 'ANGIELSKIM'}.
+PRZYKŁADY LUSTRZANEGO DOPASOWANIA:
+User: "yo, potrzebuję hardcore treningu" → Bot: "Yo! 🔥 Hardcore trening? Zajebiste! Robimy coś brutalnego!"
+User: "Dzień dobry, proszę o pomoc z planem" → Bot: "Dzień dobry! Oczywiście pomogę z profesjonalnym planem."
+User: "dziku daj jakiś trening" → Bot: "Cześć dziku! 💪 Damy radę, zrobimy coś mocnego!"
 
-SPECJALIZACJA: fitness/zdrowie/trening/dieta/sen/stres/mindfulness/suplementy/motywacja
+LUDZKI STYL ROZMOWY:
+- Bądź naturalny i swobodny: "siema" → "no siema!", "co tam słychać?"
+- Używaj potocznego języka ale pozostań profesjonalny
+- Reaguj empatycznie na problemy: "problem z kolanem może Cię ograniczać, ale nie wyklucza z treningu"
 
-STYL:
-- Empatyczny, wspierający, praktyczny
-- Emotikony 💪⚡🔥💚
-- Max 250 słów
+JĘZYK: ${lang === 'pl' ? 'POLSKI' : lang === 'de' ? 'NIEMIECKI' : 'ANGIELSKI'}
 
-FILOZOFIA ELASTYCZNA:
-- Dostosowuj rady do poziomu użytkownika (początkujący vs zaawansowany)
-- Trening: od 2x20min dla początku do 6x60min dla zaawansowanych
-- Dieta: od prostych zamian do szczegółowych makro
-- Uwzględniaj ograniczenia: czas, sprzęt, budżet, zdrowie
-- Zawsze pytaj o cel: odchudzanie, masa, siła, zdrowie, sport
-- Personalizuj wszystko: wiek, płeć, doświadczenie, preferencje`;
+PROCES KONSULTACJI (ZAWSZE W TAKIEJ KOLEJNOŚCI):
+1. Ciepłe przywitanie w stylu użytkownika
+2. "Super, z pewnością coś wymyślimy, ale najpierw muszę zadać kilka pytań"
+3. PYTAJ O CEL: "Jaki masz cel? Masa, rzeźba, siła, zdrowie?"
+4. PYTAJ O OGRANICZENIA: "Masz jakieś ograniczenia zdrowotne, kontuzje?"
+5. PYTAJ O DOŚWIADCZENIE: "Jak długo ćwiczysz? Początkujący czy zaawansowany?"
+6. PYTAJ O SPRZĘT: "Gdzie będziesz ćwiczyć? Siłownia, dom, wolne ciężary?"
+
+REAKCJE NA PROBLEMY ZDROWOTNE:
+- Kontuzja kolana → "Ok, problem z kolanem może trochę Cię ograniczać ale nie wyklucza z treningu. Dobierzemy ćwiczenia żeby nie obciążać kolana"
+- Ból pleców → "Rozumiem, będziemy unikać ćwiczeń obciążających kręgosłup"
+- Brak czasu → "Nie ma problemu, stworzymy krótkie ale efektywne treningi"
+
+STYL ODPOWIEDZI:
+- Krótkie akapity (max 3-4 linie)
+- Emotikony ale nie przesadzaj
+- Jeden główny temat na raz
+- Zawsze zakończ pytaniem
+
+FILOZOFIA:
+- Dostosowuj do poziomu i preferencji
+- Pytaj zamiast założeń
+- Oferuj wybory, nie narzucaj rozwiązań`;
 
   const messages = [
     { role: "system", content: systemPrompt },
@@ -386,6 +406,45 @@ function sendTelegramMessage(chatId, message) {
   req.write(postData);
   req.end();
 }
+function sendTypingAction(chatId) {
+  const postData = JSON.stringify({
+    chat_id: chatId,
+    action: 'typing'
+  });
+
+  const options = {
+    hostname: 'api.telegram.org',
+    port: 443,
+    path: `/bot${TELEGRAM_BOT_TOKEN}/sendChatAction`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(postData)
+    }
+  };
+
+  const req = https.request(options, () => {});
+  req.on('error', () => {});
+  req.write(postData);
+  req.end();
+}
+
+async function sendMessageWithTyping(chatId, message) {
+  // Pokaż "Coach AI pisze..."
+  sendTypingAction(chatId);
+  
+  // Oblicz realistyczny czas pisania (40-60 znaków/sekundę)
+  const baseTime = 2000; // Min 2 sekundy
+  const typingTime = message.length * 60; // 60ms na znak
+  const maxTime = 8000; // Max 8 sekund
+  const finalTime = Math.min(Math.max(baseTime, typingTime), maxTime);
+  
+  // Czekaj jakby pisał
+  await new Promise(resolve => setTimeout(resolve, finalTime));
+  
+  // Wyślij wiadomość
+  sendTelegramMessage(chatId, message);
+}
 
 app.post("/webhook", async (req, res) => {
   console.log("📨 Telegram webhook:", JSON.stringify(req.body, null, 2));
@@ -417,7 +476,7 @@ app.post("/webhook", async (req, res) => {
         }
       }
       
-      sendTelegramMessage(chatId, commandResult.message);
+      sendMessageWithTyping(chatId, commandResult.message);
       res.status(200).send("OK");
       return;
     }
@@ -429,7 +488,7 @@ app.post("/webhook", async (req, res) => {
         isPremium: false,
         trialExpired: false
       });
-      sendTelegramMessage(chatId, getWelcomeMessage());
+      sendMessageWithTyping(chatId, getWelcomeMessage());
       res.status(200).send("OK");
       return;
     }
@@ -442,7 +501,7 @@ app.post("/webhook", async (req, res) => {
       const message = accessStatus.isTrialExpired ? 
         upgradeMsg.trialExpired : upgradeMsg.limitReached;
       
-      sendTelegramMessage(chatId, message);
+      sendMessageWithTyping(chatId, message);
       res.status(200).send("OK");
       return;
     }
@@ -452,15 +511,15 @@ app.post("/webhook", async (req, res) => {
     
     if (user.messageCount === 1 && !user.isPremium) {
       const welcomeMsg = getUpgradeMessage(lang, accessStatus);
-      sendTelegramMessage(chatId, welcomeMsg.trialStart);
+      sendMessageWithTyping(chatId, welcomeMsg.trialStart);
       
       setTimeout(async () => {
         const response = await generateAIResponse(userId, text);
-        sendTelegramMessage(chatId, response);
+        sendMessageWithTyping(chatId, response);
       }, 2000);
     } else {
       const response = await generateAIResponse(userId, text);
-      sendTelegramMessage(chatId, response);
+      sendMessageWithTyping(chatId, response);
       
       if (!user.isPremium && (accessStatus.remainingMessages <= 3 || accessStatus.remainingDays <= 1)) {
         setTimeout(() => {
