@@ -386,15 +386,15 @@ FILOZOFIA:
   });
 }
 
-function sendMessageWithTyping(chatId, message) {
-  console.log(`🚀 Sending to ${chatId}: ${message.substring(0, 100)}...`);
-  
-  const postData = JSON.stringify({
-    chat_id: chatId,
-    text: message,
-    parse_mode: 'HTML'
-  });
-
+async function sendMessageWithTyping(chatId, message) {
+  console.log('🔄 Starting typing...');
+  sendTypingAction(chatId);
+  console.log('⏰ Waiting 2s...');
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  console.log('🚀 About to send...');
+  sendTelegramMessage(chatId, message);
+  console.log('✅ Send completed!');
+} 
   const options = {
     hostname: 'api.telegram.org',
     port: 443,
@@ -543,9 +543,9 @@ app.post("/webhook", async (req, res) => {
       if (!user.isPremium && (accessStatus.remainingMessages <= 3 || accessStatus.remainingDays <= 1)) {
       setTimeout(async () => {
   const warningMsg = `⚠️ Trial ending soon!...`;
-  await sendMessageWithTyping(chatId, warningMsg);
-    }, 3000);
-      }
+    console.log('🔄 About to send message...');
+    await sendMessageWithTyping(chatId, response);
+    console.log('✅ Message sent!');      }
     }
   }
   
