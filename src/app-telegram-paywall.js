@@ -541,10 +541,10 @@ app.post("/webhook", async (req, res) => {
       sendMessageWithTyping(chatId, response);
       
       if (!user.isPremium && (accessStatus.remainingMessages <= 3 || accessStatus.remainingDays <= 1)) {
-        setTimeout(() => {
-          const warningMsg = `⚠️ Trial ending soon! ${accessStatus.remainingMessages} messages, ${Math.ceil(accessStatus.remainingDays)} days left. Upgrade: zbieracz444@gmail.com`;
-          await sendMessageWithTyping(chatId, warningMsg);
-        }, 3000);
+      setTimeout(async () => {
+  const warningMsg = `⚠️ Trial ending soon!...`;
+  await sendMessageWithTyping(chatId, warningMsg);
+    }, 3000);
       }
     }
   }
