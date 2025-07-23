@@ -45,7 +45,7 @@ function getLanguageWelcome(lang) {
 💊 Suplementy - napisz "suplementy"
 🧘 Mindfulness - napisz "stres"
 
-🆓 Masz ${TRIAL_DAYS}-dniowy darmowy okres próbny z ${TRIAL_MESSAGE_LIMIT} wiadomościami!
+🆓 Masz 3-dniowy darmowy okres próbny!
 💬 Po prostu napisz czego potrzebujesz...`,
 
     de: `🇩🇪 Hallo! Ich bin dein AI Personal Trainer!
@@ -57,7 +57,7 @@ function getLanguageWelcome(lang) {
 💊 Supplements - schreib "supplements"
 🧘 Mindfulness - schreib "stress"
 
-🆓 Du hast eine ${TRIAL_DAYS}-tägige kostenlose Testversion mit ${TRIAL_MESSAGE_LIMIT} Nachrichten!
+🆓 Du hast eine 3-tägige kostenlose Testversion!
 💬 Schreib einfach was du brauchst...`,
 
     en: `🇺🇸 Hello! I'm your AI Personal Trainer!
@@ -69,7 +69,7 @@ function getLanguageWelcome(lang) {
 💊 Supplements - type "supplements"
 🧘 Mindfulness - type "stress"
 
-🆓 You have a ${TRIAL_DAYS}-day free trial with ${TRIAL_MESSAGE_LIMIT} messages!
+🆓 You have a 3-day free trial!
 💬 Just type what you need...`
   };
   
@@ -103,7 +103,7 @@ function detectLanguage(message) {
   
   if (lower.match(/[ąćęłńóśźż]/)) scores.pl += 5;
   
-  const polishWords = ['cześć', 'hej', 'jestem', 'chcę', 'chciałbym', 'trening', 'dieta', 'siłownia', 'ćwiczenia', 'zdrowie', 'siema', 'dziku'];
+  const polishWords = ['cześć', 'hej', 'jestem', 'chcę', 'chciałbym', 'trening', 'dieta', 'siłownia', 'ćwiczenia', 'zdrowie'];
   polishWords.forEach(word => {
     if (lower.includes(word)) scores.pl += 3;
   });
@@ -260,25 +260,21 @@ function callChatGPT(messages, callback) {
     res.on('data', (chunk) => { data += chunk; });
     res.on('end', () => {
       try {
-        console.log('🔍 OpenAI status:', res.statusCode);
         const result = JSON.parse(data);
         console.log(`💰 Tokens: ${result.usage?.total_tokens || 'unknown'}`);
         
-        if (result.choices && result.choices[0] && result.choices[0].message) {
+        if (result.choices && result.choices[0]) {
           callback(null, result.choices[0].message.content);
         } else {
-          console.error('❌ No choices in response:', result);
-          callback(new Error('No response choices'), null);
+          callback(new Error('No response'), null);
         }
       } catch (error) {
-        console.error('❌ Parse error:', error, 'Data:', data);
         callback(error, null);
       }
     });
   });
 
   req.on('error', (error) => {
-    console.error('💥 Request error:', error);
     callback(error, null);
   });
 
@@ -347,46 +343,6 @@ FILOZOFIA ELASTYCZNA:
   });
 }
 
-function sendTelegramMessage(chatId, message) {
-  console.log(`🚀 Sending to ${chatId}: ${message.substring(0, 100)}...`);
-  
-  const postData = JSON.stringify({
-    chat_id: chatId,
-    text: message,
-    parse_mode: 'HTML'
-  });
-
-  const options = {
-    hostname: 'api.telegram.org',
-    port: 443,
-    path: `/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(postData)
-    }
-  };
-
-  const req = https.request(options, (res) => {
-    let data = '';
-    res.on('data', (chunk) => { data += chunk; });
-    res.on('end', () => {
-      if (res.statusCode === 200) {
-        console.log('🎉 SUCCESS!');
-      } else {
-        console.error('❌ Error:', data);
-      }
-    });
-  });
-
-  req.on('error', (error) => {
-    console.error('💥 Error:', error);
-  });
-
-  req.write(postData);
-  req.end();
-}
-
 app.post("/webhook", async (req, res) => {
   console.log("📨 Telegram webhook:", JSON.stringify(req.body, null, 2));
   
@@ -407,6 +363,7 @@ app.post("/webhook", async (req, res) => {
         } else {
           userConversations.get(userId).language = commandResult.lang;
         }
+        // DODAJ UŻYTKOWNIKA DO TRIALS
         if (!userTrials.has(userId)) {
           userTrials.set(userId, {
             startDate: new Date(),
@@ -422,6 +379,7 @@ app.post("/webhook", async (req, res) => {
       return;
     }
     
+    // Inicjalizuj użytkownika jeśli nie istnieje
     if (!userTrials.has(userId)) {
       userTrials.set(userId, {
         startDate: new Date(),
@@ -481,6 +439,46 @@ app.get("/health", (req, res) => {
 app.listen(PORT, () => {
   console.log("🤖 Telegram AI Personal Trainer running on port " + PORT);
   console.log("🌍 Multi-language welcome system!");
-  console.log("💰 5-day trial, 200 messages, €9.99/month premium!");
+  console.log("💰 3-day trial, €9.99/month premium!");
   console.log("🎯 Commands: /start, /polish, /german, /english");
 });
+
+function sendTelegramMessage(chatId, message) {
+  console.log(`🚀 Sending to ${chatId}: ${message.substring(0, 100)}...`);
+  
+  const postData = JSON.stringify({
+    chat_id: chatId,
+    text: message,
+    parse_mode: 'HTML'
+  });
+
+  const options = {
+    hostname: 'api.telegram.org',
+    port: 443,
+    path: `/bot${TELEGRAM_BOT_TOKEN}/sendMessage`,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(postData)
+    }
+  };
+
+  const req = https.request(options, (res) => {
+    let data = '';
+    res.on('data', (chunk) => { data += chunk; });
+    res.on('end', () => {
+      if (res.statusCode === 200) {
+        console.log('🎉 SUCCESS!');
+      } else {
+        console.error('❌ Error:', JSON.parse(data));
+      }
+    });
+  });
+
+  req.on('error', (error) => {
+    console.error('💥 Error:', error);
+  });
+
+  req.write(postData);
+  req.end();
+}
