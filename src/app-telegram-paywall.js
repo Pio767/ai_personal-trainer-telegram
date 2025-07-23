@@ -334,26 +334,7 @@ STYL ODPOWIEDZI:
 - Emotikony ale nie przesadzaj
 - Jeden główny temat na raz
 - Zawsze zakończ pytaniem
-ŚCISŁE OGRANICZENIA TEMATYCZNE:
-- TYLKO tematy: fitness, trening, dieta, odżywianie, gotowanie zdrowych posiłków, suplementy, regeneracja, sen, mindfulness, rozwój osobisty, psychologia sportowa, medycyna sportowa
-- Jeśli pytanie o inne tematy → "Siema! Jestem trenerem personalnym, pomagam z treningiem, dietą i rozwojem osobistym. W czym mogę pomóc?"
-- NIE odpowiadaj na: naprawy, technologia, inne zawody, diagnostyka medyczna
-- Zawsze przekieruj na swój obszar: "Hej, to nie moja działka! Ale mogę pomóc z treningiem, dietą lub motywacją - co Cię interesuje?"
 
-TYLKO ODPOWIADAJ GDY PYTANIE DOTYCZY:
-✅ Treningi, ćwiczenia, planowanie
-✅ Dieta, odżywianie, kalorie, makro
-✅ Gotowanie zdrowych posiłków, przepisy fit
-✅ Suplementy sportowe
-✅ Regeneracja, sen, odpoczynek
-✅ Motywacja do ćwiczeń
-✅ Rozwój osobisty, cele życiowe
-✅ Psychologia, mindset, pewność siebie
-✅ Zarządzanie stresem, relaksacja
-✅ Kontuzje sportowe, ograniczenia zdrowotne w treningu
-✅ Podstawowa medycyna sportowa (ale zalecaj konsultację z lekarzem)
-
-❌ Wszystko inne = "Nie moja działka, ale pomogę z treningiem, dietą lub rozwojem!"
 FILOZOFIA:
 - Dostosowuj do poziomu i preferencji
 - Pytaj zamiast założeń
@@ -386,7 +367,7 @@ FILOZOFIA:
   });
 }
 
-function sendMessageWithTyping(chatId, message) {
+function sendTelegramMessage(chatId, message) {
   console.log(`🚀 Sending to ${chatId}: ${message.substring(0, 100)}...`);
   
   const postData = JSON.stringify({
@@ -417,11 +398,6 @@ function sendMessageWithTyping(chatId, message) {
       }
     });
   });
-async function sendMessageWithTyping(chatId, message) {
-  sendTypingAction(chatId);
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  sendTelegramMessage(chatId, message);
-}
 
   req.on('error', (error) => {
     console.error('💥 Error:', error);
@@ -467,7 +443,7 @@ async function sendMessageWithTyping(chatId, message) {
   await new Promise(resolve => setTimeout(resolve, finalTime));
   
   // Wyślij wiadomość
-  sendMessageWithTyping(chatId, message);
+  sendTelegramMessage(chatId, message);
 }
 
 app.post("/webhook", async (req, res) => {
@@ -546,10 +522,10 @@ app.post("/webhook", async (req, res) => {
       sendMessageWithTyping(chatId, response);
       
       if (!user.isPremium && (accessStatus.remainingMessages <= 3 || accessStatus.remainingDays <= 1)) {
-      setTimeout(async () => {
-  const warningMsg = `⚠️ Trial ending soon!...`;
-  await sendMessageWithTyping(chatId, warningMsg);
-    }, 3000);
+        setTimeout(() => {
+          const warningMsg = `⚠️ Trial ending soon! ${accessStatus.remainingMessages} messages, ${Math.ceil(accessStatus.remainingDays)} days left. Upgrade: zbieracz444@gmail.com`;
+          sendTelegramMessage(chatId, warningMsg);
+        }, 3000);
       }
     }
   }
