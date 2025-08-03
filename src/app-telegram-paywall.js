@@ -318,7 +318,7 @@ JĘZYK: ${lang === 'pl' ? 'POLSKI' : lang === 'de' ? 'NIEMIECKI' : 'ANGIELSKI'}
 
 PROCES KONSULTACJI (ZAWSZE W TAKIEJ KOLEJNOŚCI):
 1. Ciepłe przywitanie w stylu użytkownika
-2. "Super, z pewnością coś wymyślimy, ale najpierw muszę zadać kilka pytań"
+2. "Super! Żeby stworzyć idealny plan, powiedz mi jedno - jaki jest Twój główny cel?"
 3. PYTAJ O CEL: "Jaki masz cel? Masa, rzeźba, siła, zdrowie?"
 4. PYTAJ O OGRANICZENIA: "Masz jakieś ograniczenia zdrowotne, kontuzje?"
 5. PYTAJ O DOŚWIADCZENIE: "Jak długo ćwiczysz? Początkujący czy zaawansowany?"
