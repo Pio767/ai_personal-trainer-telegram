@@ -11,7 +11,7 @@ app.use(express.json());
 
 const userTrials = new Map();
 const userConversations = new Map();
-
+const userProfiles = new Map(); // Przechowuje: cel, wagę, wzrost, styl
 const TRIAL_DAYS = 5;
 const TRIAL_MESSAGE_LIMIT = 200;
 const PREMIUM_PRICE = 9.99;
@@ -95,7 +95,12 @@ function handleLanguageCommand(command) {
   }
 }
 
-function detectLanguage(message) {
+function updateUserProfile(userId, data) {
+  if (!userProfiles.has(userId)) {
+    userProfiles.set(userId, {});
+  }
+  Object.assign(userProfiles.get(userId), data);
+}function detectLanguage(message) {
   const lower = message.toLowerCase();
   console.log(`🕵️ Analyzing message: "${message}"`);
   
