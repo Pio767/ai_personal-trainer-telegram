@@ -532,7 +532,7 @@ app.post("/webhook", async (req, res) => {
     const user = userTrials.get(userId);
     user.messageCount++;
     
-    if (user.messageCount === 1 && !user.isPremium) {
+    if (user.messageCount === 100 if (user.messageCount === 1 && !user.isPremium) {if (user.messageCount === 1 && !user.isPremium) { !user.isPremium) {
       const welcomeMsg = getUpgradeMessage(lang, accessStatus);
       sendMessageWithTyping(chatId, welcomeMsg.trialStart);
       
