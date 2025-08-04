@@ -532,7 +532,7 @@ app.post("/webhook", async (req, res) => {
     const user = userTrials.get(userId);
     user.messageCount++;
     
-    if (user.messageCount === 50 if (user.messageCount === 1 && !user.isPremium)if (user.messageCount === 1 && !user.isPremium) !user.isPremium) {
+    if (user.messageCount === 1 && !user.isPremium) {
       const welcomeMsg = getUpgradeMessage(lang, accessStatus);
       sendMessageWithTyping(chatId, welcomeMsg.trialStart);
       
@@ -544,7 +544,7 @@ app.post("/webhook", async (req, res) => {
       const response = await generateAIResponse(userId, text);
       sendMessageWithTyping(chatId, response);
       
-      if (!user.isPremium && (accessStatus.remainingMessages <= 20 || accessStatus.remainingDays <= 0.5)) {
+      if (!user.isPremium && (accessStatus.remainingMessages <= 3 || accessStatus.remainingDays <= 1)) {
         setTimeout(() => {
           const warningMsg = `⚠️ Trial ending soon! ${accessStatus.remainingMessages} messages, ${Math.ceil(accessStatus.remainingDays)} days left. Upgrade: zbieracz444@gmail.com`;
           sendTelegramMessage(chatId, warningMsg);
