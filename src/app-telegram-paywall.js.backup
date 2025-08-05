@@ -11,9 +11,10 @@ app.use(express.json());
 
 const userTrials = new Map();
 const userConversations = new Map();
-const userProfiles = new Map(); // Przechowuje: cel, wagę, wzrost, styl
+
 const TRIAL_DAYS = 5;
 const TRIAL_MESSAGE_LIMIT = 200;
+const PREMIUM_PRICE = 9.99;
 
 function getWelcomeMessage() {
   return `🏋️‍♂️ AI PERSONAL TRAINER 🏋️‍♀️
@@ -44,7 +45,7 @@ function getLanguageWelcome(lang) {
 💊 Suplementy - napisz "suplementy"
 🧘 Mindfulness - napisz "stres"
 
-🆓 Masz ${TRIAL_DAYS}-dniowy darmowy okres próbny z ${TRIAL_MESSAGE_LIMIT} wiadomościami!
+🆓 Masz 3-dniowy darmowy okres próbny!
 💬 Po prostu napisz czego potrzebujesz...`,
 
     de: `🇩🇪 Hallo! Ich bin dein AI Personal Trainer!
@@ -56,7 +57,7 @@ function getLanguageWelcome(lang) {
 💊 Supplements - schreib "supplements"
 🧘 Mindfulness - schreib "stress"
 
-🆓 Du hast eine ${TRIAL_DAYS}-tägige kostenlose Testversion mit ${TRIAL_MESSAGE_LIMIT} Nachrichten!
+🆓 Du hast eine 3-tägige kostenlose Testversion!
 💬 Schreib einfach was du brauchst...`,
 
     en: `🇺🇸 Hello! I'm your AI Personal Trainer!
@@ -68,7 +69,7 @@ function getLanguageWelcome(lang) {
 💊 Supplements - type "supplements"
 🧘 Mindfulness - type "stress"
 
-🆓 You have a ${TRIAL_DAYS}-day free trial with ${TRIAL_MESSAGE_LIMIT} messages!
+🆓 You have a 3-day free trial!
 💬 Just type what you need...`
   };
   
@@ -94,12 +95,7 @@ function handleLanguageCommand(command) {
   }
 }
 
-function updateUserProfile(userId, data) {
-  if (!userProfiles.has(userId)) {
-    userProfiles.set(userId, {});
-  }
-  Object.assign(userProfiles.get(userId), data);
-}function detectLanguage(message) {
+function detectLanguage(message) {
   const lower = message.toLowerCase();
   console.log(`🕵️ Analyzing message: "${message}"`);
   
@@ -107,7 +103,7 @@ function updateUserProfile(userId, data) {
   
   if (lower.match(/[ąćęłńóśźż]/)) scores.pl += 5;
   
-  const polishWords = ['cześć', 'hej', 'jestem', 'chcę', 'chciałbym', 'trening', 'dieta', 'siłownia', 'ćwiczenia', 'zdrowie', 'siema', 'dziku'];
+  const polishWords = ['cześć', 'hej', 'jestem', 'chcę', 'chciałbym', 'trening', 'dieta', 'siłownia', 'ćwiczenia', 'zdrowie'];
   polishWords.forEach(word => {
     if (lower.includes(word)) scores.pl += 3;
   });
@@ -264,25 +260,21 @@ function callChatGPT(messages, callback) {
     res.on('data', (chunk) => { data += chunk; });
     res.on('end', () => {
       try {
-        console.log('🔍 OpenAI status:', res.statusCode);
         const result = JSON.parse(data);
         console.log(`💰 Tokens: ${result.usage?.total_tokens || 'unknown'}`);
         
-        if (result.choices && result.choices[0] && result.choices[0].message) {
+        if (result.choices && result.choices[0]) {
           callback(null, result.choices[0].message.content);
         } else {
-          console.error('❌ No choices in response:', result);
-          callback(new Error('No response choices'), null);
+          callback(new Error('No response'), null);
         }
       } catch (error) {
-        console.error('❌ Parse error:', error, 'Data:', data);
         callback(error, null);
       }
     });
   });
 
   req.on('error', (error) => {
-    console.error('💥 Request error:', error);
     callback(error, null);
   });
 
@@ -300,67 +292,29 @@ async function generateAIResponse(userId, message) {
   const userState = userConversations.get(userId);
   userState.messages.push({ role: 'user', content: message });
   
-const systemPrompt = `Jesteś Coach AI - ekspertem od holistycznego zdrowia i fitness.
+  const systemPrompt = `Jesteś Coach AI - ekspertem od holistycznego zdrowia.
 
-EFEKT LUSTRZANY - PEŁNA INTERAKCJA:
-- Dopasowuj energię: "SIEMA DZIKU!" → "SIEMA! 🔥", spokojny ton → spokojny ton
-- Używaj podobnego słownictwa: user mówi "koleś" → ty też "koleś"
-- Odbijaj styl: formalny user → profesjonalny, casual user → swobodny
-- Naśladuj długość: krótkie pytania → krótkie odpowiedzi, długie → szczegółowe
+LUSTRZANA OSOBOWOŚĆ:
+- Dopasowuj TON do użytkownika (casualowy = casualowy, poważny = profesjonalny)
+- Używaj podobnego języka: "siema dziku" → "Cześć dziku!", "potrzebuję pomocy" → "Pomogę Ci"
+- Odbijaj energię: wysoka energia = entuzjazm, spokojna = opanowanie
 
-PRZYKŁADY LUSTRZANEGO DOPASOWANIA:
-User: "yo, potrzebuję hardcore treningu" → Bot: "Yo! 🔥 Hardcore trening? Zajebiste! Robimy coś brutalnego!"
-User: "Dzień dobry, proszę o pomoc z planem" → Bot: "Dzień dobry! Oczywiście pomogę z profesjonalnym planem."
-User: "dziku daj jakiś trening" → Bot: "Cześć dziku! 💪 Damy radę, zrobimy coś mocnego!"
+JĘZYK: Odpowiadaj ZAWSZE w języku ${lang === 'pl' ? 'POLSKIM' : lang === 'de' ? 'NIEMIECKIM' : 'ANGIELSKIM'}.
 
-LUDZKI STYL ROZMOWY:
-- Bądź naturalny i swobodny: "siema" → "no siema!", "co tam słychać?"
-- Używaj potocznego języka ale pozostań profesjonalny
-- Reaguj empatycznie na problemy: "problem z kolanem może Cię ograniczać, ale nie wyklucza z treningu"
+SPECJALIZACJA: fitness/zdrowie/trening/dieta/sen/stres/mindfulness/suplementy/motywacja
 
-JĘZYK: ${lang === 'pl' ? 'POLSKI' : lang === 'de' ? 'NIEMIECKI' : 'ANGIELSKI'}
+STYL:
+- Empatyczny, wspierający, praktyczny
+- Emotikony 💪⚡🔥💚
+- Max 250 słów
 
-NATURALNY PRZEPŁYW:
-- Jeśli user prosi o KONKRETNY PLAN - najpierw zbierz KLUCZOWE dane
-- PLAN TRENINGOWY = pytaj o cel, poziom, czas
-PLAN DIETETYCZNY = pytaj o wagę, wzrost, cel, alergie
-- Reaguj intuicyjnie na to co user mówi
-REAKCJE NA PROBLEMY ZDROWOTNE:
-- Kontuzja kolana → "Ok, problem z kolanem może trochę Cię ograniczać ale nie wyklucza z treningu. Dobierzemy ćwiczenia żeby nie obciążać kolana"
-- Ból pleców → "Rozumiem, będziemy unikać ćwiczeń obciążających kręgosłup"
-- Brak czasu → "Nie ma problemu, stworzymy krótkie ale efektywne treningi"
-
-STYL ODPOWIEDZI:
-- Krótkie akapity (max 3-4 linie)
-- Emotikony ale nie przesadzaj
-- Jeden główny temat na raz
-- Zawsze zakończ pytaniem
-
-ŚCISŁE OGRANICZENIA TEMATYCZNE:
-- TYLKO tematy: fitness, trening, dieta, odżywianie, gotowanie zdrowych posiłków, suplementy, regeneracja, sen, mindfulness, rozwój osobisty, psychologia sportowa, medycyna sportowa
-- Jeśli pytanie o inne tematy → "Siema! Jestem trenerem personalnym, pomagam z treningiem, dietą i rozwojem osobistym. W czym mogę pomóc?"
-- NIE odpowiadaj na: naprawy, technologia, inne zawody, diagnostyka medyczna
-- Zawsze przekieruj na swój obszar: "Hej, to nie moja działka! Ale mogę pomóc z treningiem, dietą lub motywacją - co Cię interesuje?"
-
-TYLKO ODPOWIADAJ GDY PYTANIE DOTYCZY:
-✅ Treningi, ćwiczenia, planowanie
-✅ Dieta, odżywianie, kalorie, makro
-✅ Gotowanie zdrowych posiłków, przepisy fit
-✅ Suplementy sportowe
-✅ Regeneracja, sen, odpoczynek
-✅ Motywacja do ćwiczeń
-✅ Rozwój osobisty, cele życiowe
-✅ Psychologia, mindset, pewność siebie
-✅ Zarządzanie stresem, relaksacja
-✅ Kontuzje sportowe, ograniczenia zdrowotne w treningu
-✅ Podstawowa medycyna sportowa (ale zalecaj konsultację z lekarzem)
-
-❌ Wszystko inne = "Nie moja działka, ale pomogę z treningiem, dietą lub rozwojem!"
-
-FILOZOFIA:
-- Dostosowuj do poziomu i preferencji
-- Pytaj zamiast założeń
-- Oferuj wybory, nie narzucaj rozwiązań`;
+FILOZOFIA ELASTYCZNA:
+- Dostosowuj rady do poziomu użytkownika (początkujący vs zaawansowany)
+- Trening: od 2x20min dla początku do 6x60min dla zaawansowanych
+- Dieta: od prostych zamian do szczegółowych makro
+- Uwzględniaj ograniczenia: czas, sprzęt, budżet, zdrowie
+- Zawsze pytaj o cel: odchudzanie, masa, siła, zdrowie, sport
+- Personalizuj wszystko: wiek, płeć, doświadczenie, preferencje`;
 
   const messages = [
     { role: "system", content: systemPrompt },
@@ -389,6 +343,106 @@ FILOZOFIA:
   });
 }
 
+app.post("/webhook", async (req, res) => {
+  console.log("📨 Telegram webhook:", JSON.stringify(req.body, null, 2));
+  
+  const message = req.body.message;
+  
+  if (message && message.text) {
+    const chatId = message.chat.id;
+    const text = message.text.trim();
+    const userId = message.from.id.toString();
+    
+    console.log(`📨 From ${userId} (${chatId}): ${text}`);
+    
+    const commandResult = handleLanguageCommand(text.toLowerCase());
+    if (commandResult) {
+      if (commandResult.lang) {
+        if (!userConversations.has(userId)) {
+          userConversations.set(userId, { messages: [], language: commandResult.lang });
+        } else {
+          userConversations.get(userId).language = commandResult.lang;
+        }
+        // DODAJ UŻYTKOWNIKA DO TRIALS
+        if (!userTrials.has(userId)) {
+          userTrials.set(userId, {
+            startDate: new Date(),
+            messageCount: 0,
+            isPremium: false,
+            trialExpired: false
+          });
+        }
+      }
+      
+      sendTelegramMessage(chatId, commandResult.message);
+      res.status(200).send("OK");
+      return;
+    }
+    
+    // Inicjalizuj użytkownika jeśli nie istnieje
+    if (!userTrials.has(userId)) {
+      userTrials.set(userId, {
+        startDate: new Date(),
+        messageCount: 0,
+        isPremium: false,
+        trialExpired: false
+      });
+      sendTelegramMessage(chatId, getWelcomeMessage());
+      res.status(200).send("OK");
+      return;
+    }
+    
+    const accessStatus = checkUserAccess(userId);
+    const lang = detectLanguage(text);
+    
+    if (!accessStatus.canUse) {
+      const upgradeMsg = getUpgradeMessage(lang, accessStatus);
+      const message = accessStatus.isTrialExpired ? 
+        upgradeMsg.trialExpired : upgradeMsg.limitReached;
+      
+      sendTelegramMessage(chatId, message);
+      res.status(200).send("OK");
+      return;
+    }
+    
+    const user = userTrials.get(userId);
+    user.messageCount++;
+    
+    if (user.messageCount === 1 && !user.isPremium) {
+      const welcomeMsg = getUpgradeMessage(lang, accessStatus);
+      sendTelegramMessage(chatId, welcomeMsg.trialStart);
+      
+      setTimeout(async () => {
+        const response = await generateAIResponse(userId, text);
+        sendTelegramMessage(chatId, response);
+      }, 2000);
+    } else {
+      const response = await generateAIResponse(userId, text);
+      sendTelegramMessage(chatId, response);
+      
+      if (!user.isPremium && (accessStatus.remainingMessages <= 3 || accessStatus.remainingDays <= 1)) {
+        setTimeout(() => {
+          const warningMsg = `⚠️ Trial ending soon! ${accessStatus.remainingMessages} messages, ${Math.ceil(accessStatus.remainingDays)} days left. Upgrade: zbieracz444@gmail.com`;
+          sendTelegramMessage(chatId, warningMsg);
+        }, 3000);
+      }
+    }
+  }
+  
+  res.status(200).send("OK");
+});
+
+app.get("/health", (req, res) => {
+  res.json({ status: "OK", message: "🤖 Telegram AI Personal Trainer ready!" });
+});
+
+app.listen(PORT, () => {
+  console.log("🤖 Telegram AI Personal Trainer running on port " + PORT);
+  console.log("🌍 Multi-language welcome system!");
+  console.log("💰 3-day trial, €9.99/month premium!");
+  console.log("🎯 Commands: /start, /polish, /german, /english");
+});
+
 function sendTelegramMessage(chatId, message) {
   console.log(`🚀 Sending to ${chatId}: ${message.substring(0, 100)}...`);
   
@@ -416,7 +470,7 @@ function sendTelegramMessage(chatId, message) {
       if (res.statusCode === 200) {
         console.log('🎉 SUCCESS!');
       } else {
-        console.error('❌ Error:', data);
+        console.error('❌ Error:', JSON.parse(data));
       }
     });
   });
@@ -428,140 +482,3 @@ function sendTelegramMessage(chatId, message) {
   req.write(postData);
   req.end();
 }
-function sendTypingAction(chatId) {
-  const postData = JSON.stringify({
-    chat_id: chatId,
-    action: 'typing'
-  });
-
-  const options = {
-    hostname: 'api.telegram.org',
-    port: 443,
-    path: `/bot${TELEGRAM_BOT_TOKEN}/sendChatAction`,
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Content-Length': Buffer.byteLength(postData)
-    }
-  };
-
-  const req = https.request(options, () => {});
-  req.on('error', () => {});
-  req.write(postData);
-  req.end();
-}
-
-async function sendMessageWithTyping(chatId, message) {
-  // Pokaż "Coach AI pisze..."
-  sendTypingAction(chatId);
-  
-  // Oblicz realistyczny czas pisania (40-60 znaków/sekundę)
-  const baseTime = 2000; // Min 2 sekundy
-  const typingTime = message.length * 60; // 60ms na znak
-  const maxTime = 8000; // Max 8 sekund
-  const finalTime = Math.min(Math.max(baseTime, typingTime), maxTime);
-  
-  // Czekaj jakby pisał
-  await new Promise(resolve => setTimeout(resolve, finalTime));
-  
-  // Wyślij wiadomość
-  sendTelegramMessage(chatId, message);
-}
-
-app.post("/webhook", async (req, res) => {
-  console.log("📨 Telegram webhook:", JSON.stringify(req.body, null, 2));
-  
-  const message = req.body.message;
-  
-  if (message && message.text) {
-    const chatId = message.chat.id;
-    const text = message.text.trim();
-    const userId = message.from.id.toString();
-    
-    console.log(`📨 From ${userId} (${chatId}): ${text}`);
-    
-    const commandResult = handleLanguageCommand(text.toLowerCase());
-    if (commandResult) {
-      if (commandResult.lang) {
-        if (!userConversations.has(userId)) {
-          userConversations.set(userId, { messages: [], language: commandResult.lang });
-        } else {
-          userConversations.get(userId).language = commandResult.lang;
-        }
-        if (!userTrials.has(userId)) {
-          userTrials.set(userId, {
-            startDate: new Date(),
-            messageCount: 0,
-            isPremium: false,
-            trialExpired: false
-          });
-        }
-      }
-      
-      sendMessageWithTyping(chatId, commandResult.message);
-      res.status(200).send("OK");
-      return;
-    }
-    
-    if (!userTrials.has(userId)) {
-      userTrials.set(userId, {
-        startDate: new Date(),
-        messageCount: 0,
-        isPremium: false,
-        trialExpired: false
-      });
-      sendMessageWithTyping(chatId, getWelcomeMessage());
-      res.status(200).send("OK");
-      return;
-    }
-    
-    const accessStatus = checkUserAccess(userId);
-    const lang = detectLanguage(text);
-    
-    if (!accessStatus.canUse) {
-      const upgradeMsg = getUpgradeMessage(lang, accessStatus);
-      const message = accessStatus.isTrialExpired ? 
-        upgradeMsg.trialExpired : upgradeMsg.limitReached;
-      
-      sendMessageWithTyping(chatId, message);
-      res.status(200).send("OK");
-      return;
-    }
-    
-    const user = userTrials.get(userId);
-    user.messageCount++;
-    
-    if (user.messageCount === 1 && !user.isPremium) {
-      const welcomeMsg = getUpgradeMessage(lang, accessStatus);
-      sendMessageWithTyping(chatId, welcomeMsg.trialStart);
-      
-      setTimeout(async () => {
-        const response = await generateAIResponse(userId, text);
-        sendMessageWithTyping(chatId, response);
-      }, 2000);
-    } else {
-      const response = await generateAIResponse(userId, text);
-      sendMessageWithTyping(chatId, response);
-      
-      if (!user.isPremium && (accessStatus.remainingMessages <= 3 || accessStatus.remainingDays <= 1)) {
-        setTimeout(() => {
-          const warningMsg = `⚠️ Trial ending soon! ${accessStatus.remainingMessages} messages, ${Math.ceil(accessStatus.remainingDays)} days left. Upgrade: zbieracz444@gmail.com`;
-          sendTelegramMessage(chatId, warningMsg);
-        }, 3000);
-      }
-    }
-  }
-  
-  res.status(200).send("OK");
-});
-
-app.get("/health", (req, res) => {
-  res.json({ status: "OK", message: "🤖 Telegram AI Personal Trainer ready!" });
-});
-
-app.listen(PORT, () => {
-  console.log("🤖 Telegram AI Personal Trainer running on port " + PORT);
-  console.log("🌍 Multi-language welcome system!");
-  console.log("💰 5-day trial, 200 messages, €9.99/month premium!");
-  console.log("🎯 Commands: /start, /polish, /german, /english");
-});
